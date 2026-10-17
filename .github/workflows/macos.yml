@@ -1,0 +1,26 @@
+name: macOS checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: macos-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Check ducking behavior
+        run: zsh scripts/check-engine.sh
+      - name: Run XCTest suite
+        run: swift test
+      - name: Build app bundle
+        run: zsh scripts/build-app.sh
+      - name: Verify local signature
+        run: codesign --verify --strict "dist/Lid Duck.app"

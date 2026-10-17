@@ -13,7 +13,7 @@ zsh scripts/build-app.sh
 open "dist/Lid Duck.app"
 ```
 
-The script creates an ad-hoc signed app in `dist`. It has no Dock icon: use the speaker icon in the menu bar. Optional: copy the app into Applications yourself. Quit an existing instance before opening another. Build is for the current Mac architecture; this is not a notarized distribution build.
+The script creates an ad-hoc signed app in `dist`. It has no Dock icon: use the laptop icon in the menu bar. Optional: copy the app into Applications yourself. Quit an existing instance before opening another. Build is for the current Mac architecture; this is not a notarized distribution build.
 
 ## Menu-bar controls
 
@@ -51,22 +51,29 @@ Some HDMI, DisplayPort, USB, aggregate, Bluetooth, or virtual outputs lack writa
 
 Designed to run as your ordinary user, without root, Accessibility, microphone, screen recording, or an Apple account. The narrowly matched sensor normally needs no Input Monitoring permission, but device access is OS-dependent. If the menu shows an access error, hardware/OS access remains unvalidated; do not run the app as root. This local app is not App Sandbox enabled or notarized. Standard macOS execution/security policy still applies.
 
-## Validation
+## Development and validation
 
-Run `zsh scripts/check-engine.sh` for standalone deterministic fake-audio checks of debounce reset, hysteresis, restore, manual override/rearm, route changes, fade interruption, sensor failure, disable, quiet audio, channel balance, and mute override. These tests do not exercise the physical sensor or real output device. An additional XCTest suite is available via `swift test` when full Xcode with XCTest is installed; the Command Line Tools on the implementation host lack XCTest.
+```sh
+zsh scripts/check-engine.sh  # Standalone checks; Command Line Tools are sufficient
+swift test                   # XCTest suite; full Xcode required
+zsh scripts/build-app.sh     # Release build and ad-hoc signed app
+```
 
-Manual checks still required:
+See [validation notes](docs/VALIDATION.md) for coverage and the hardware checklist, and [changelog](CHANGELOG.md) for changes. GitHub Actions runs the checks and release build on macOS; physical lid and audio behavior require a MacBook.
 
-1. Open the built app and confirm the icon/popover, controls, persistence and live angle agree with physical lid movement on your exact model/OS.
-2. Play quiet audio, hold below 70° for >250 ms, confirm ducking; move within 70–85° and confirm no toggling; hold above 85° and confirm restoration. Brief crossings should do nothing.
-3. Change volume and mute using keys/Control Center during ducking and both fades. Confirm no stale restore and that reopening rearms a new closing cycle.
-4. Switch among speakers/headphones/Bluetooth/HDMI while ducked and during fades. Confirm no stale baseline is applied to the new route and unsupported routes show an error.
-5. Disable and quit during ducking and each fade. Sleep/wake and unplug outputs. Check normal system sleep behavior remains intact and valid angle reads resume.
-6. Check long-running CPU/energy usage and actual audio-driver rounding. Test macOS 13+ releases and additional hardware before claiming broader support.
+## Project layout
 
-## Local verification record
+```text
+Sources/LidDuck/       Menu-bar UI, lid sensor, Core Audio, ducking engine
+Tests/LidDuckTests/    XCTest behavior tests
+scripts/              Local app build and standalone behavior checks
+docs/                 Manual validation and compatibility notes
+.github/workflows/    macOS continuous integration
+Info.plist            Menu-bar app bundle configuration
+Package.swift         Swift package definition
+```
 
-The implementation host uses Apple Silicon and the macOS 27 SDK / Swift 6.4 Command Line Tools. The release build and standalone checks are the local verification path; XCTest requires full Xcode. Physical hardware/volume and UI behavior remain manual validation items below, not certified compatibility claims.
+Build output (`.build/`, `dist/`), local editor settings and secrets are ignored by Git. The app has no third-party package dependencies.
 
 ## Uninstall
 
