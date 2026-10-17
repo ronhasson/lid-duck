@@ -1,10 +1,14 @@
 import SwiftUI
 import AppKit
+import ServiceManagement
 
 final class AppModel: ObservableObject {
     @Published var angle: Double?
     @Published var status = "Starting"
     @Published var sensorStatus = ""
+    @Published private(set) var loginStatus = LoginItemStatus.disabled
+    @Published private(set) var loginError: String?
+    private let loginItem = LoginItemController(driver: SystemLoginItem())
     @Published var enabled: Bool { didSet { UserDefaults.standard.set(enabled, forKey: "enabled"); if !enabled { engine.stop() }; configure(); poll() } }
     @Published var trigger: Double { didSet { if restore <= trigger { restore = trigger + 1 }; save() } }
     @Published var restore: Double { didSet { if restore <= trigger { trigger = restore - 1 }; save() } }
@@ -31,7 +35,26 @@ final class AppModel: ObservableObject {
         })
         observers.append(workspace.addObserver(forName: NSWorkspace.didWakeNotification, object: nil, queue: .main) { [weak self] _ in self?.startTimer() })
         observers.append(NotificationCenter.default.addObserver(forName: NSApplication.willTerminateNotification, object: nil, queue: .main) { [weak self] _ in self?.engine.stop() })
+        observers.append(NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in self?.refreshLoginItem() })
+        refreshLoginItem()
         startTimer()
+    }
+    var canRegisterLoginItem: Bool {
+        let app = Bundle.main.bundleURL.resolvingSymlinksInPath()
+        let folder = app.deletingLastPathComponent().path
+        return app.pathExtension == "app" && (folder == "/Applications" || folder == NSHomeDirectory() + "/Applications")
+    }
+    var loginRequested: Bool { loginStatus == .enabled || loginStatus == .requiresApproval }
+    func refreshLoginItem() {
+        loginItem.refresh(); loginStatus = loginItem.status
+    }
+    func setLaunchAtLogin(_ enabled: Bool) {
+        guard !enabled || canRegisterLoginItem else {
+            loginError = "Move Lid Duck to Applications and reopen it first."
+            return
+        }
+        loginItem.setEnabled(enabled)
+        loginStatus = loginItem.status; loginError = loginItem.error
     }
     private func configure() {
         engine.enabled = enabled; engine.trigger = trigger; engine.restore = restore
@@ -115,13 +138,14 @@ struct LidDuckApp: App {
                 Text("Hold for 250 ms. Manual volume changes override ducking until the lid reopens.")
                     .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
                 Divider()
+                loginSetting
                 HStack {
                     Button { model.resetDefaults() } label: {
                         Image(systemName: "arrow.counterclockwise").frame(width: 22, height: 22)
                     }
                     .buttonStyle(.borderless)
-                    .help("Reset all settings to defaults")
-                    .accessibilityLabel("Reset to defaults")
+                    .help("Reset ducking settings to defaults")
+                    .accessibilityLabel("Reset ducking settings to defaults")
                     Spacer()
                     Button("Quit") { model.quit() }.keyboardShortcut("q")
                 }
@@ -131,6 +155,34 @@ struct LidDuckApp: App {
                 .opacity(model.enabled ? 1 : 0.45)
                 .accessibilityLabel("Lid Duck")
         }.menuBarExtraStyle(.window)
+    }
+    private var loginSetting: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Toggle("Launch at login", isOn: Binding(
+                get: { model.loginRequested },
+                set: { model.setLaunchAtLogin($0) }
+            ))
+            .toggleStyle(.switch).controlSize(.mini).font(.callout)
+            .disabled(!model.canRegisterLoginItem && !model.loginRequested)
+            if let error = model.loginError {
+                Text(error).font(.caption).foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if !model.canRegisterLoginItem {
+                Text("Move to Applications to enable.").font(.caption).foregroundStyle(.secondary)
+            }
+            if model.loginStatus == .requiresApproval {
+                HStack {
+                    Text("Approval needed").font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Open Settings") { SMAppService.openSystemSettingsLoginItems() }
+                        .buttonStyle(.borderless).font(.caption)
+                }
+            } else if model.canRegisterLoginItem && model.loginStatus == .unavailable {
+                Text("Login item unavailable. Reopen the installed app and try again.")
+                    .font(.caption).foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }.onAppear { model.refreshLoginItem() }
     }
     private var header: some View {
         VStack(alignment: .leading, spacing: 8) {

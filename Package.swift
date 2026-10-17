@@ -12,7 +12,8 @@ let package = Package(
             name: "LidDuck",
             linkerSettings: [
                 .linkedFramework("IOKit"),
-                .linkedFramework("CoreAudio")
+                .linkedFramework("CoreAudio"),
+                .linkedFramework("ServiceManagement")
             ]
         ),
         .testTarget(name: "LidDuckTests", dependencies: ["LidDuck"])

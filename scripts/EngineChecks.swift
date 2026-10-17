@@ -3,10 +3,26 @@ import Foundation
 final class MemoryAudio: VolumeIO {
     var state = VolumeState(device: 1, channels: [0], values: [0.8])
     var failure = false
+    var reads = 0
+    var failOnRead: Int?
     func read() throws -> VolumeState {
-        if failure { throw AudioFailure(message: "Disconnected") }; return state
+        reads += 1
+        if failure || reads == failOnRead { throw AudioFailure(message: "Disconnected") }; return state
     }
     func write(_ state: VolumeState) throws { self.state = state }
+}
+final class MemoryLogin: LoginItemDriver {
+    var status: LoginItemStatus = .disabled
+    var registrationResult: LoginItemStatus = .enabled
+    var failure = false
+    func register() throws {
+        if failure { throw AudioFailure(message: "Registration failed") }
+        status = registrationResult
+    }
+    func unregister() throws {
+        if failure { throw AudioFailure(message: "Unregistration failed") }
+        status = .disabled
+    }
 }
 @main struct EngineChecks {
     static func main() {
@@ -76,6 +92,55 @@ final class MemoryAudio: VolumeIO {
             e.tick(angle: 100, now: 0.15)
             precondition(e.status == "Ready", "Sensor recovery must clear the unavailable status")
         }
-        print("PASS: debounce/reset, hysteresis/restore, manual override/rearm, mute override, route switch, sensor loss, disable, fade interruption, quiet audio, channel balance, audio failure, re-enable status, sensor recovery status")
+        do {
+            let (a,e) = make(); close(e); e.duration = 2
+            e.tick(angle: 90, now: 1); e.tick(angle: 90, now: 1.3)
+            e.tick(angle: 60, now: 1.4); e.tick(angle: 60, now: 1.7)
+            e.tick(angle: 60, now: 3.8)
+            e.tick(angle: 90, now: 4); e.tick(angle: 90, now: 4.3); e.tick(angle: 90, now: 6.4)
+            near(a.state.values[0], 0.8)
+        }
+        do {
+            let (a,e) = make(); close(e)
+            a.failure = true; e.tick(angle: 90, now: 1)
+            a.failure = false; e.tick(angle: 90, now: 1.1); e.tick(angle: 90, now: 1.4); e.tick(angle: 90, now: 1.5)
+            near(a.state.values[0], 0.8)
+        }
+        do {
+            let (a,e) = make(); close(e)
+            a.failure = true; e.tick(angle: 60, now: 1)
+            a.state = VolumeState(device: 1, channels: [0], values: [0.4])
+            a.failure = false; e.tick(angle: 60, now: 1.1); e.stop()
+            near(a.state.values[0], 0.4)
+        }
+        do {
+            let (a,e) = make(); close(e); e.duration = 1
+            e.tick(angle: 90, now: 1); e.tick(angle: 90, now: 1.3)
+            a.failOnRead = a.reads + 3
+            e.tick(angle: 90, now: 1.8)
+            precondition(e.status.hasPrefix("Audio unavailable:"))
+            e.tick(angle: 90, now: 1.9); e.tick(angle: 90, now: 3)
+            near(a.state.values[0], 0.8)
+        }
+        do {
+            let (a,e) = make(); close(e); a.failure = true
+            e.enabled = false; e.stop()
+            a.failure = false; e.tick(angle: 60, now: 1)
+            near(a.state.values[0], 0.8)
+        }
+        do {
+            let driver = MemoryLogin(); let login = LoginItemController(driver: driver)
+            precondition(login.status == .disabled)
+            driver.registrationResult = .requiresApproval
+            login.setEnabled(true); precondition(login.status == .requiresApproval)
+            driver.status = .enabled; login.refresh(); precondition(login.status == .enabled)
+            driver.failure = true; login.setEnabled(false)
+            precondition(login.status == .enabled && login.error != nil)
+            driver.failure = false; login.setEnabled(false)
+            precondition(login.status == .disabled && login.error == nil)
+            driver.failure = true; login.setEnabled(true)
+            precondition(login.status == .disabled && login.error != nil)
+        }
+        print("PASS: debounce/reset, hysteresis/restore, manual override/rearm, mute override, route switch, sensor loss, disable, fade interruption, quiet audio, channel balance, audio failure, re-enable status, sensor recovery status, interrupted restore baseline, transient read recovery, manual changes during outage, readback failure, deferred disable restore, login registration/approval/errors")
     }
 }

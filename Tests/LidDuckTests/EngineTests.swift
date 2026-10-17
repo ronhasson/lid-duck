@@ -3,7 +3,14 @@ import XCTest
 final class FakeAudio: VolumeIO {
     var state = VolumeState(device: 1, channels: [0], values: [0.8])
     var writes = 0
-    func read() throws -> VolumeState { state }
+    var reads = 0
+    var failOnRead: Int?
+    var failure = false
+    func read() throws -> VolumeState {
+        reads += 1
+        if failure || reads == failOnRead { throw AudioFailure(message: "Transient failure") }
+        return state
+    }
     func write(_ state: VolumeState) throws { self.state = state; writes += 1 }
 }
 final class EngineTests: XCTestCase {
@@ -12,6 +19,42 @@ final class EngineTests: XCTestCase {
         return (audio, engine)
     }
     func close(_ e: DuckEngine) { e.tick(angle: 60, now: 0); e.tick(angle: 60, now: 0.26); e.tick(angle: 60, now: 0.3) }
+    func testRecloseDuringRestoreKeepsOriginalBaseline() {
+        let (a,e) = setup(); close(e); e.duration = 2
+        e.tick(angle: 90, now: 1); e.tick(angle: 90, now: 1.3)
+        e.tick(angle: 60, now: 1.4); e.tick(angle: 60, now: 1.7)
+        e.tick(angle: 60, now: 3.8)
+        e.tick(angle: 90, now: 4); e.tick(angle: 90, now: 4.3); e.tick(angle: 90, now: 6.4)
+        XCTAssertEqual(a.state.values[0], 0.8, accuracy: 0.001)
+    }
+    func testTransientReadPreservesValidatedBaseline() {
+        let (a,e) = setup(); close(e)
+        a.failure = true; e.tick(angle: 90, now: 1)
+        a.failure = false; e.tick(angle: 90, now: 1.1); e.tick(angle: 90, now: 1.4); e.tick(angle: 90, now: 1.5)
+        XCTAssertEqual(a.state.values[0], 0.8, accuracy: 0.001)
+    }
+    func testReadbackFailureRecoversAfterSuccessfulWrite() {
+        let (a,e) = setup(); close(e); e.duration = 1
+        e.tick(angle: 90, now: 1); e.tick(angle: 90, now: 1.3)
+        a.failOnRead = a.reads + 3
+        e.tick(angle: 90, now: 1.8)
+        XCTAssertTrue(e.status.hasPrefix("Audio unavailable:"))
+        e.tick(angle: 90, now: 1.9); e.tick(angle: 90, now: 3)
+        XCTAssertEqual(a.state.values[0], 0.8, accuracy: 0.001)
+    }
+    func testManualChangeDuringOutageCancelsRestore() {
+        let (a,e) = setup(); close(e)
+        a.failure = true; e.tick(angle: 60, now: 1)
+        a.state = VolumeState(device: 1, channels: [0], values: [0.4])
+        a.failure = false; e.tick(angle: 60, now: 1.1); e.stop()
+        XCTAssertEqual(a.state.values[0], 0.4)
+    }
+    func testDisableRetriesRestorationAfterReadFailure() {
+        let (a,e) = setup(); close(e); a.failure = true
+        e.enabled = false; e.stop()
+        a.failure = false; e.tick(angle: 60, now: 1)
+        XCTAssertEqual(a.state.values[0], 0.8, accuracy: 0.001)
+    }
     func testStatusRecoversWithoutLidMovement() {
         let (_,e) = setup()
         e.enabled = false; e.tick(angle: 100, now: 0)
