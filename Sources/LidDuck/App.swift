@@ -125,7 +125,7 @@ struct LidDuckApp: App {
                     Spacer()
                     Button("Quit") { model.quit() }.keyboardShortcut("q")
                 }
-            }.padding(18).frame(width: 330)
+            }.padding(EdgeInsets(top: 18, leading: 18, bottom: 12, trailing: 18)).frame(width: 330)
         } label: {
             Image(nsImage: LidIcon.image)
                 .opacity(model.enabled ? 1 : 0.45)
