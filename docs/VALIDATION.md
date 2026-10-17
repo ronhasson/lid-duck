@@ -25,3 +25,9 @@ A second independent agent review found no new blocking issues after the fixes. 
 ## First-open responsiveness
 
 The 0.2.1 change removes synchronous ServiceManagement queries from menu opening and application activation, caches the bundle installation check and avoids publishing unchanged readings every 50 ms. Regression checks deliberately hold a login driver query while verifying that the caller and main queue remain responsive, and verify that serialized operations return snapshots on the main queue. A cold first-click timing comparison on the user's Mac still needs manual validation; these checks establish the nonblocking code path, not a measured reproduction of the original multi-second UI delay.
+
+### Captured first-open bottleneck (0.2.1)
+
+A cold-launch sample on the user's Mac captured the menu-opening delay on 2026-10-17. Of 23,792 main-thread samples, 15,067 were within `NSSlider.layout`; its dominant branches repeatedly rebuilt `NSSliderTickMarks` geometry under SwiftUI's initial `MenuBarExtraWindow` layout. This is direct evidence that the earlier asynchronous login-query change did not address the observed bottleneck.
+
+The 0.2.2 controls omit SwiftUI's discrete `step` argument, keeping the native slider continuous and rounding the bound settings instead. The separate transition ruler retains just nine positions (250 ms intervals), while accessibility adjustments retain one-unit increments. Offscreen native-slider checks confirm that a 2,001-tick layout is substantially more costly than a zero-tick control, but do not reproduce the full SwiftUI menu-window stall; a cold first-open check of the rebuilt app is required.

@@ -239,7 +239,7 @@ struct LidDuckApp: App {
     private func angleSetting(_ title: String, value: Binding<Double>, range: ClosedRange<Double>) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack { Text(title).font(.callout); Spacer(); valueLabel("\(Int(value.wrappedValue))°") }
-            Slider(value: value, in: range, step: 1).accessibilityLabel(title)
+            SettingSlider(title, value: value, in: range)
         }
     }
     private var volumeSetting: some View {
@@ -251,8 +251,7 @@ struct LidDuckApp: App {
             }
             HStack(spacing: 8) {
                 Image(systemName: "speaker.fill").foregroundStyle(.secondary)
-                Slider(value: $model.duck, in: 0...100, step: 1)
-                    .accessibilityLabel("Duck volume")
+                SettingSlider("Duck volume", value: $model.duck, in: 0...100)
                 Image(systemName: "speaker.wave.3.fill").foregroundStyle(.secondary)
             }.font(.caption)
         }
@@ -264,9 +263,9 @@ struct LidDuckApp: App {
                 Spacer()
                 valueLabel("\(Int(model.duration)) ms")
             }
-            Slider(value: $model.duration, in: 0...2000, step: 1)
-                .accessibilityLabel("Transition duration in milliseconds")
-            // Native slider remains continuous at 1 ms; the ruler is visual guidance.
+            SettingSlider("Transition duration in milliseconds", value: $model.duration, in: 0...2000)
+            // Whole-millisecond values use a continuous native slider; this ruler
+            // has only nine marks instead of 2,001 native tick positions.
             GeometryReader { geometry in
                 let trackWidth = max(0, geometry.size.width - 16)
                 ForEach(0..<9) { index in

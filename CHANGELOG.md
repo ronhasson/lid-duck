@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.2.2 — 2026-10-17
+
+- Fix the profiled first-open stall in AppKit's native slider tick-cache layout.
+- Keep native sliders continuous and round their bindings to whole-number settings instead of creating hundreds/thousands of native ticks.
+- Preserve the transition ruler and one-unit accessibility adjustments.
+
 ## 0.2.1 — 2026-10-17
 
 - Move all login-item queries and changes off the UI thread onto a serial worker.
