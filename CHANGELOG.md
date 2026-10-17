@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+## 0.2.3 — 2026-10-17
+
+- Snap transition duration and its accessibility adjustments to 10 ms increments.
+- Round previously saved transition values to the nearest 10 ms on launch.
+
 ## 0.2.2 — 2026-10-17
 
 - Fix the profiled first-open stall in AppKit's native slider tick-cache layout.

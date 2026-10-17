@@ -36,7 +36,7 @@ final class AppModel: ObservableObject {
         trigger = initialTrigger
         restore = r.isFinite ? min(180, max(initialTrigger + 1, r)) : 85
         duck = min(100, max(0, defaults.double(forKey: "duck")))
-        duration = min(2000, max(0, defaults.double(forKey: "duration")))
+        duration = SettingSlider.rounded(defaults.double(forKey: "duration"), in: 0...2000, increment: 10)
         configure()
         let workspace = NSWorkspace.shared.notificationCenter
         observers.append(workspace.addObserver(forName: NSWorkspace.willSleepNotification, object: nil, queue: .main) { [weak self] _ in
@@ -263,8 +263,8 @@ struct LidDuckApp: App {
                 Spacer()
                 valueLabel("\(Int(model.duration)) ms")
             }
-            SettingSlider("Transition duration in milliseconds", value: $model.duration, in: 0...2000)
-            // Whole-millisecond values use a continuous native slider; this ruler
+            SettingSlider("Transition duration in milliseconds", value: $model.duration, in: 0...2000, increment: 10)
+            // Ten-millisecond values use a continuous native slider; this ruler
             // has only nine marks instead of 2,001 native tick positions.
             GeometryReader { geometry in
                 let trackWidth = max(0, geometry.size.width - 16)

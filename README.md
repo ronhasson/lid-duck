@@ -19,7 +19,7 @@ The script creates an ad-hoc signed app in `dist`. It has no Dock icon: use the 
 
 The partially closed laptop icon dims when disabled. The popover header contains a compact native enable/disable switch, compact status and live angle. Healthy sensor messages are hidden; sensor/audio errors use a red indicator and switch accent with details immediately below. Manual override is summarized in the header. Enable/disable and sensor recovery refresh status immediately without requiring lid movement. The live angle keeps its larger rounded font; other values remain smaller.
 
-Transition has a visual ruler every 250 ms, with longer labeled marks every 500 ms. The native sliders are continuous and round changes to whole-number values (whole milliseconds for transition), avoiding thousands of native tick positions during initial layout. Accessibility adjustments change one unit at a time. Duck volume uses a percentage badge and speaker endpoints. The bottom-left reset icon restores ducking defaults, including enabling the app; it leaves launch at login unchanged. Hover for its tooltip. Quit is at bottom right.
+Transition has a visual ruler every 250 ms, with longer labeled marks every 500 ms. The native sliders are continuous and round changes to whole-number values (10 ms increments for transition), avoiding thousands of native tick positions during initial layout. Accessibility adjustments change transition by 10 ms and other settings by one unit at a time. Duck volume uses a percentage badge and speaker endpoints. The bottom-left reset icon restores ducking defaults, including enabling the app; it leaves launch at login unchanged. Hover for its tooltip. Quit is at bottom right.
 
 ## Launch at login
 

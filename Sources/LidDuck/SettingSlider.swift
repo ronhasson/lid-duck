@@ -8,26 +8,28 @@ struct SettingSlider: View {
     let title: String
     @Binding var value: Double
     let range: ClosedRange<Double>
+    let increment: Double
 
-    init(_ title: String, value: Binding<Double>, in range: ClosedRange<Double>) {
+    init(_ title: String, value: Binding<Double>, in range: ClosedRange<Double>, increment: Double = 1) {
         self.title = title
         self._value = value
         self.range = range
+        self.increment = increment
     }
-    static func rounded(_ value: Double, in range: ClosedRange<Double>) -> Double {
+    static func rounded(_ value: Double, in range: ClosedRange<Double>, increment: Double = 1) -> Double {
         guard value.isFinite else { return range.lowerBound }
-        return min(range.upperBound, max(range.lowerBound, value.rounded()))
+        return min(range.upperBound, max(range.lowerBound, (value / increment).rounded() * increment))
     }
     var body: some View {
         Slider(value: Binding(
             get: { value },
-            set: { value = Self.rounded($0, in: range) }
+            set: { value = Self.rounded($0, in: range, increment: increment) }
         ), in: range)
         .accessibilityLabel(title)
         .accessibilityAdjustableAction { direction in
             switch direction {
-            case .increment: value = Self.rounded(value + 1, in: range)
-            case .decrement: value = Self.rounded(value - 1, in: range)
+            case .increment: value = Self.rounded(value + increment, in: range, increment: increment)
+            case .decrement: value = Self.rounded(value - increment, in: range, increment: increment)
             @unknown default: break
             }
         }
