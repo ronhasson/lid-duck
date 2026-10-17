@@ -24,6 +24,22 @@ final class MemoryLogin: LoginItemDriver {
         status = .disabled
     }
 }
+final class SlowWorkerLogin: LoginItemDriver {
+    private var first = true
+    private var current = LoginItemStatus.disabled
+    let gate: DispatchSemaphore
+    init(gate: DispatchSemaphore) {
+        precondition(!Thread.isMainThread)
+        self.gate = gate
+    }
+    var status: LoginItemStatus {
+        precondition(!Thread.isMainThread)
+        if first { first = false; _ = gate.wait(timeout: .now() + 3) }
+        return current
+    }
+    func register() throws { precondition(!Thread.isMainThread); current = .enabled }
+    func unregister() throws { precondition(!Thread.isMainThread); current = .disabled }
+}
 @main struct EngineChecks {
     static func main() {
         func make() -> (MemoryAudio, DuckEngine) {
@@ -141,6 +157,29 @@ final class MemoryLogin: LoginItemDriver {
             driver.failure = true; login.setEnabled(true)
             precondition(login.status == .disabled && login.error != nil)
         }
-        print("PASS: debounce/reset, hysteresis/restore, manual override/rearm, mute override, route switch, sensor loss, disable, fade interruption, quiet audio, channel balance, audio failure, re-enable status, sensor recovery status, interrupted restore baseline, transient read recovery, manual changes during outage, readback failure, deferred disable restore, login registration/approval/errors")
+        do {
+            let gate = DispatchSemaphore(value: 0)
+            let service = LoginItemService { SlowWorkerLogin(gate: gate) }
+            var snapshots: [LoginItemStatus] = []
+            var mainResponsive = false
+            let started = ProcessInfo.processInfo.systemUptime
+            service.refresh { snapshot in
+                precondition(Thread.isMainThread); snapshots.append(snapshot.status)
+            }
+            precondition(ProcessInfo.processInfo.systemUptime - started < 0.5, "Slow login query blocked the caller")
+            service.setEnabled(true) { snapshot in
+                precondition(Thread.isMainThread); snapshots.append(snapshot.status)
+            }
+            service.setEnabled(false) { snapshot in
+                precondition(Thread.isMainThread); snapshots.append(snapshot.status)
+            }
+            DispatchQueue.main.async { mainResponsive = true; gate.signal() }
+            let deadline = Date().addingTimeInterval(5)
+            while snapshots.count < 3 && Date() < deadline {
+                _ = RunLoop.main.run(mode: .default, before: Date().addingTimeInterval(0.01))
+            }
+            precondition(mainResponsive && snapshots == [.disabled, .enabled, .disabled], "Login worker must keep the UI responsive and serialize snapshots")
+        }
+        print("PASS: debounce/reset, hysteresis/restore, manual override/rearm, mute override, route switch, sensor loss, disable, fade interruption, quiet audio, channel balance, audio failure, re-enable status, sensor recovery status, interrupted restore baseline, transient read recovery, manual changes during outage, readback failure, deferred disable restore, login registration/approval/errors, nonblocking cold login lookup, serialized main-queue snapshots")
     }
 }

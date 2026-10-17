@@ -21,3 +21,7 @@ The implementation host uses Apple Silicon and the macOS 27 SDK / Swift 6.4 Comm
 ## Review of 0.2.0
 
 A second independent agent review found no new blocking issues after the fixes. The reviewer independently reproduced the original interrupted-restore and transient-read scenarios and confirmed both now restore the original volume. Login-item state handling, approval/errors, the installation-path guard, reset behavior and external status refresh were also reviewed. The expanded standalone regression suite passed. This does not replace the installed-app reboot/login and real-device checks above.
+
+## First-open responsiveness
+
+The 0.2.1 change removes synchronous ServiceManagement queries from menu opening and application activation, caches the bundle installation check and avoids publishing unchanged readings every 50 ms. Regression checks deliberately hold a login driver query while verifying that the caller and main queue remain responsive, and verify that serialized operations return snapshots on the main queue. A cold first-click timing comparison on the user's Mac still needs manual validation; these checks establish the nonblocking code path, not a measured reproduction of the original multi-second UI delay.

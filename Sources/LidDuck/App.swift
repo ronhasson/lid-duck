@@ -8,7 +8,16 @@ final class AppModel: ObservableObject {
     @Published var sensorStatus = ""
     @Published private(set) var loginStatus = LoginItemStatus.disabled
     @Published private(set) var loginError: String?
-    private let loginItem = LoginItemController(driver: SystemLoginItem())
+    @Published private(set) var loginBusy = false
+    @Published private(set) var loginLoaded = false
+    private let loginItem = LoginItemService(makeDriver: { SystemLoginItem() })
+    // Bundle location is constant during this process; avoid filesystem work in
+    // SwiftUI body evaluations (including live angle updates).
+    let canRegisterLoginItem: Bool = {
+        let app = Bundle.main.bundleURL.resolvingSymlinksInPath()
+        let folder = app.deletingLastPathComponent().path
+        return app.pathExtension == "app" && (folder == "/Applications" || folder == NSHomeDirectory() + "/Applications")
+    }()
     @Published var enabled: Bool { didSet { UserDefaults.standard.set(enabled, forKey: "enabled"); if !enabled { engine.stop() }; configure(); poll() } }
     @Published var trigger: Double { didSet { if restore <= trigger { restore = trigger + 1 }; save() } }
     @Published var restore: Double { didSet { if restore <= trigger { trigger = restore - 1 }; save() } }
@@ -39,22 +48,26 @@ final class AppModel: ObservableObject {
         refreshLoginItem()
         startTimer()
     }
-    var canRegisterLoginItem: Bool {
-        let app = Bundle.main.bundleURL.resolvingSymlinksInPath()
-        let folder = app.deletingLastPathComponent().path
-        return app.pathExtension == "app" && (folder == "/Applications" || folder == NSHomeDirectory() + "/Applications")
-    }
     var loginRequested: Bool { loginStatus == .enabled || loginStatus == .requiresApproval }
     func refreshLoginItem() {
-        loginItem.refresh(); loginStatus = loginItem.status
+        // Activation and onAppear can coincide. Coalesce them rather than queue
+        // multiple potentially slow service queries behind the initial lookup.
+        guard !loginBusy else { return }
+        loginBusy = true
+        loginItem.refresh { [weak self] snapshot in self?.applyLoginSnapshot(snapshot) }
+    }
+    private func applyLoginSnapshot(_ snapshot: LoginItemSnapshot) {
+        loginStatus = snapshot.status; loginError = snapshot.error
+        loginLoaded = true; loginBusy = false
     }
     func setLaunchAtLogin(_ enabled: Bool) {
+        guard !loginBusy, loginLoaded else { return }
         guard !enabled || canRegisterLoginItem else {
             loginError = "Move Lid Duck to Applications and reopen it first."
             return
         }
-        loginItem.setEnabled(enabled)
-        loginStatus = loginItem.status; loginError = loginItem.error
+        loginBusy = true
+        loginItem.setEnabled(enabled) { [weak self] snapshot in self?.applyLoginSnapshot(snapshot) }
     }
     private func configure() {
         engine.enabled = enabled; engine.trigger = trigger; engine.restore = restore
@@ -75,8 +88,12 @@ final class AppModel: ObservableObject {
     }
     private func poll() {
         let now = ProcessInfo.processInfo.systemUptime
-        angle = sensor.read(now: now); sensorStatus = sensor.detail
-        engine.tick(angle: angle, now: now); status = engine.status
+        let reading = sensor.read(now: now)
+        engine.tick(angle: reading, now: now)
+        // A stable sensor/status should not invalidate the popover 20 times/sec.
+        if angle != reading { angle = reading }
+        if sensorStatus != sensor.detail { sensorStatus = sensor.detail }
+        if status != engine.status { status = engine.status }
     }
     var issue: String? {
         if angle == nil { return sensorStatus.isEmpty ? "Lid sensor unavailable" : sensorStatus }
@@ -163,8 +180,10 @@ struct LidDuckApp: App {
                 set: { model.setLaunchAtLogin($0) }
             ))
             .toggleStyle(.switch).controlSize(.mini).font(.callout)
-            .disabled(!model.canRegisterLoginItem && !model.loginRequested)
-            if let error = model.loginError {
+            .disabled(model.loginBusy || (!model.canRegisterLoginItem && !model.loginRequested))
+            if !model.loginLoaded {
+                Text("Checking login setting…").font(.caption).foregroundStyle(.secondary)
+            } else if let error = model.loginError {
                 Text(error).font(.caption).foregroundStyle(.red)
                     .fixedSize(horizontal: false, vertical: true)
             } else if !model.canRegisterLoginItem {

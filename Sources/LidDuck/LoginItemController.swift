@@ -1,6 +1,6 @@
 import Foundation
 
-enum LoginItemStatus: Equatable {
+enum LoginItemStatus: Equatable, Sendable {
     case enabled, disabled, requiresApproval, unavailable
 }
 protocol LoginItemDriver: AnyObject {

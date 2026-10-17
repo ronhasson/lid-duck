@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.2.1 — 2026-10-17
+
+- Move all login-item queries and changes off the UI thread onto a serial worker.
+- Cache installation eligibility instead of resolving the app path during view rendering.
+- Coalesce overlapping login refreshes and show an accurate loading/disabled state.
+- Avoid publishing unchanged angle/status values on every polling tick.
+
 ## 0.2.0 — 2026-10-17
 
 - Preserve the original volume baseline when reclosing during restoration.
