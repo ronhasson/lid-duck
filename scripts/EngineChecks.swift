@@ -156,6 +156,8 @@ final class SlowWorkerLogin: LoginItemDriver {
             precondition(login.status == .disabled && login.error == nil)
             driver.failure = true; login.setEnabled(true)
             precondition(login.status == .disabled && login.error != nil)
+            driver.status = .enabled; login.refresh()
+            precondition(login.status == .enabled && login.error == nil)
         }
         do {
             let gate = DispatchSemaphore(value: 0)

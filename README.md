@@ -1,6 +1,21 @@
 # Lid Duck
 
+<img src="assets/AppIcon.png" width="96" alt="Lid Duck app icon">
+
 A self-contained native Swift/SwiftUI macOS menu-bar app. No packages, telemetry, networking, account, background service or changes to sleep/clamshell behavior.
+
+## Download and install
+
+[Download the latest release](https://github.com/ronhasson/lid-duck/releases/latest)
+
+The packaged app is for **Apple Silicon MacBooks with a compatible lid-angle sensor, running macOS 13 or later**. Intel Macs need a local build and are not validated for sensor support.
+
+1. Download `Lid-Duck-0.2.4-macos-arm64.zip` from the release assets and unzip it.
+2. Quit any running copy, then drag **Lid Duck.app** into **Applications**.
+3. Open the installed app and use its laptop icon in the menu bar.
+4. Optionally enable **Launch at login** in the popover.
+
+This early public build is **ad-hoc signed, not Developer ID signed or notarized**. macOS may block a downloaded copy. If you trust the source, follow [Apple's per-app opening instructions](https://support.apple.com/102445); managed Macs may prevent overrides. The app does not change system security settings. A SHA-256 file accompanies the ZIP for integrity checking.
 
 ## Build and run
 
@@ -65,14 +80,15 @@ swift test                   # XCTest suite; full Xcode required
 zsh scripts/build-app.sh     # Release build and ad-hoc signed app
 ```
 
-See [validation notes](docs/VALIDATION.md) for coverage and the hardware checklist, and [changelog](CHANGELOG.md) for changes. GitHub Actions runs the checks and release build on macOS; physical lid and audio behavior require a MacBook.
+See [release instructions](docs/RELEASING.md), [validation notes](docs/VALIDATION.md) for coverage and the hardware checklist, and [changelog](CHANGELOG.md) for changes. GitHub Actions runs the checks and release build on macOS; physical lid and audio behavior require a MacBook.
 
 ## Project layout
 
 ```text
 Sources/LidDuck/       Menu-bar UI, lid sensor, Core Audio, ducking engine
 Tests/LidDuckTests/    XCTest behavior tests
-scripts/              Local app build and standalone behavior checks
+scripts/              App/icon builds, release packaging and behavior checks
+assets/               Original app icon source outputs
 docs/                 Manual validation and compatibility notes
 .github/workflows/    macOS continuous integration
 Info.plist            Menu-bar app bundle configuration
@@ -90,6 +106,10 @@ For a normal downloadable release, use Developer ID signing, hardened runtime, a
 - [Apple: opening apps safely](https://support.apple.com/102445)
 - [Apple: Developer ID distribution](https://developer.apple.com/developer-id/)
 - [Apple: notarization requirements](https://developer.apple.com/documentation/security/notarizing-macos-software-before-distribution)
+
+## License
+
+No license has been selected for this repository yet.
 
 ## Uninstall
 

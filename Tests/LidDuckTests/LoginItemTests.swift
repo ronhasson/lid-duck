@@ -27,6 +27,16 @@ final class LoginItemTests: XCTestCase {
         driver.status = .disabled; login.refresh()
         XCTAssertEqual(login.status, .disabled)
     }
+    func testExternalRecoveryClearsObsoleteOperationError() {
+        let driver = FakeLoginItem()
+        let login = LoginItemController(driver: driver)
+        driver.fails = true; login.setEnabled(true)
+        XCTAssertNotNil(login.error)
+        driver.status = .enabled
+        login.refresh()
+        XCTAssertEqual(login.status, .enabled)
+        XCTAssertNil(login.error)
+    }
     func testFailedOperationsDoNotInventSuccess() {
         let driver = FakeLoginItem()
         let login = LoginItemController(driver: driver)

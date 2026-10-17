@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.2.4 — 2026-10-17
+
+- First public packaged release for Apple Silicon Macs.
+- Add an original laptop-and-volume Finder app icon; the menu-bar symbol is unchanged.
+- Clear obsolete login errors after external state recovery.
+- Add clean app bundle staging and a release ZIP with a SHA-256 checksum.
+- Update the pinned checkout action to the current Node.js 24-compatible release.
+
 ## 0.2.3 — 2026-10-17
 
 - Snap transition duration and its accessibility adjustments to 10 ms increments.

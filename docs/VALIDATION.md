@@ -31,3 +31,9 @@ The 0.2.1 change removes synchronous ServiceManagement queries from menu opening
 A cold-launch sample on the user's Mac captured the menu-opening delay on 2026-10-17. Of 23,792 main-thread samples, 15,067 were within `NSSlider.layout`; its dominant branches repeatedly rebuilt `NSSliderTickMarks` geometry under SwiftUI's initial `MenuBarExtraWindow` layout. This is direct evidence that the earlier asynchronous login-query change did not address the observed bottleneck.
 
 The 0.2.2 controls omit SwiftUI's discrete `step` argument, keeping the native slider continuous and rounding the bound settings instead. The separate transition ruler retains just nine positions (250 ms intervals), while accessibility adjustments retain one-unit increments. Offscreen native-slider checks confirm that a 2,001-tick layout is substantially more costly than a zero-tick control, but do not reproduce the full SwiftUI menu-window stall; the user then quit/reopened the rebuilt 0.2.2 app and confirmed that its first menu opening is fast. The profiled bottleneck and the user-confirmed result support the slider fix; the offscreen benchmark alone was not used as proof.
+
+## Public-release review of 0.2.4
+
+An independent subagent reviewed source, tests, build scripts, CI, docs and tracked history before publication. No blocking findings or committed secrets were found. One minor stale login-error display issue was fixed and covered by a regression check: external recovery clears an obsolete error while a current failed operation still reports its error.
+
+The public build remains ad-hoc signed and not notarized. No license has been selected. Hardware checks, actual launch after reboot, quarantined downloads and sustained energy use remain the manual validation items above. The Finder app icon is original vector artwork rendered by `scripts/render-icon.swift`; the menu-bar symbol is unchanged.
